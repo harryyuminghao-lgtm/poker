@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Poker Preflop Helper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #0b1120;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+    }
+    .app {
+      width: 100%;
+      max-width: 520px;
+      background: #020617;
+      border-radius: 16px;
+      padding: 20px 18px 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid #1f2937;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 4px;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    label {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      display: block;
+      margin-bottom: 4px;
+    }
+    select, input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    select:focus, input:focus {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    .hint {
+      font-size: 0.78rem;
+      color: #6b7280;
+      margin-top: 3px;
+    }
+    button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #020617;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.35);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.1s ease;
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      opacity: 0.9;
+    }
+    .result-card {
+      margin-top: 16px;
+      padding: 14px 12px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #1f2937;
+    }
+    .result-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .result-main {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .badge {
+      font-size: 0.76rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      color: #9ca3af;
+    }
+    .action {
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+    .action.raise,
+    .action.shove,
+    .action["3bet"],
+    .action["4bet"] {
+      color: #22c55e;
+    }
+    .action.fold {
+      color: #f97316;
+    }
+    .mode {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+    .error {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #f97316;
+    }
+    .small-text {
+      margin-top: 14px;
+      font-size: 0.77rem;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+      .app {
+        padding: 16px 12px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Poker Preflop Helper</h1>
+    <div class="subtitle">Open / 3-bet / 4-bet guide • Tournament early–mid stage</div>
+
+    <div class="field">
+      <label for="situation">Situation</label>
+      <select id="situation">
+        <option value="OPEN" selected>Open first in</option>
+        <option value="VS_OPEN">Facing an open (3-bet / call / fold)</option>
+        <option value="VS_3BET">Facing a 3-bet (4-bet / call / fold)</option>
+      </select>
+      <div class="hint">Open = no one has raised yet. Others: someone already raised / 3-bet.</div>
+    </div>
+
+    <div class="field">
+      <label for="position">Your position</label>
+      <select id="position">
+        <option value="UTG">UTG</option>
+        <option value="MP">MP</option>
+        <option value="HJ">HJ</option>
+        <option value="CO">CO</option>
+        <option value="BTN" selected>BTN</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="villainPos">Villain position (raiser / 3-bettor)</label>
+      <select id="villainPos">
+        <option value="UTG">UTG</option>
+        <option value="MP">MP</option>
+        <option value="HJ">HJ</option>
+        <option value="CO">CO</option>
+        <option value="BTN">BTN</option>
+      </select>
+      <div class="hint">Used in "Facing an open" and "Facing a 3-bet" modes.</div>
+    </div>
+
+    <div class="field">
+      <label for="stack">Your stack (in big blinds)</label>
+      <input id="stack" type="number" min="1" max="300" value="40" />
+      <div class="hint">Open mode: ≤ 10 BB → shove/fold, &gt; 10 BB → raise/fold. Other modes assume ~30–60 BB.</div>
+    </div>
+
+    <div class="field">
+      <label for="hand">Hand</label>
+      <input id="hand" type="text" placeholder="AKs, QJo, 77, T9s" />
+      <div class="hint">Format: pairs (77), suited (AKs, T9s), offsuit (AJo, KQo)</div>
+    </div>
+
+    <button id="goBtn">Get Action</button>
+
+    <div id="result" class="result-card" style="display:none;">
+      <div class="result-label">Recommended action</div>
+      <div class="result-main">
+        <div id="actionText" class="action">–</div>
+        <div id="badge" class="badge"></div>
+      </div>
+      <div id="modeText" class="mode"></div>
+    </div>
+
+    <div id="error" class="error" style="display:none;"></div>
+
+    <div class="small-text">
+      This is a simplified training tool for tournament play with similar stacks.
+      • Open mode: solid TAG opening ranges + short-stack shove/fold (≤ 10 BB).<br/>
+      • Facing open: approximate 3-bet / call ranges vs UTG–BTN opens.<br/>
+      • Facing 3-bet: simple 4-bet / call logic (mostly QQ+/AK and suited wheel aces as bluffs).<br/>
+      5-bet spots are rare: usually QQ+ / AK only.
+    </div>
+  </div>
+
+  <script>
+    const RANK_ORDER = "23456789TJQKA";
+    const RANK_VALUE = {};
+    for (let i = 0; i < RANK_ORDER.length; i++) {
+      RANK_VALUE[RANK_ORDER[i]] = i;
+    }
+
+    function parseHand(handStr) {
+      const s = handStr.trim().toUpperCase();
+      if (!s) throw new Error("Please enter a hand.");
+      if (s.length === 2) {
+        const r1 = s[0], r2 = s[1];
+        if (r1 === r2 && RANK_ORDER.includes(r1)) {
+          return { r1, r2, suitedFlag: null };
+        } else {
+          throw new Error("Use format like 'AKs', 'QJo', or '77'.");
+        }
+      } else if (s.length === 3) {
+        let r1 = s[0], r2 = s[1], f = s[2];
+        if (!RANK_ORDER.includes(r1) || !RANK_ORDER.includes(r2)) {
+          throw new Error("Invalid hand ranks. Example: AKs, QJo, 77.");
+        }
+        if (f !== "S" && f !== "O") {
+          throw new Error("Third character must be 's' (suited) or 'o' (offsuit).");
+        }
+        if (RANK_VALUE[r2] > RANK_VALUE[r1]) {
+          const tmp = r1; r1 = r2; r2 = tmp;
+        }
+        return { r1, r2, suitedFlag: f.toLowerCase() };
+      } else {
+        throw new Error("Hand must be like 'AKs', 'QJo', or '77'.");
+      }
+    }
+
+    function isPair(h) { return h.suitedFlag === null && h.r1 === h.r2; }
+    function pairRankValue(h) { return RANK_VALUE[h.r1]; }
+    function isSuited(h) { return h.suitedFlag === "s"; }
+    function isOffsuit(h) { return h.suitedFlag === "o"; }
+    function isBroadway(r) { return "TJQKA".includes(r); }
+    function isConnector(h) { return Math.abs(RANK_VALUE[h.r1] - RANK_VALUE[h.r2]) === 1; }
+    function isOneGap(h) { return Math.abs(RANK_VALUE[h.r1] - RANK_VALUE[h.r2]) === 2; }
+
+    // ---------- OPEN FIRST-IN (deep) ----------
+
+    function decideUTG(h) {
+      if (isPair(h)) return pairRankValue(h) >= RANK_VALUE["7"];
+      if (isSuited(h)) {
+        if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return true;
+        if (h.r1 === "K" && h.r2 === "Q") return true;
+        return false;
+      }
+      if (isOffsuit(h)) {
+        if (h.r1 === "A" && (h.r2 === "Q" || h.r2 === "K")) return true;
+        return false;
+      }
+      return false;
+    }
+
+    function decideMP(h) {
+      if (isPair(h)) return pairRankValue(h) >= RANK_VALUE["5"];
+      if (isSuited(h)) {
+        if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return true;
+        if ((h.r1 === "Q" && h.r2 === "J") || (h.r1 === "J" && h.r2 === "T")) return true;
+        return false;
+      }
+      if (isOffsuit(h)) {
+        if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return true;
+        if (h.r1 === "K" && h.r2 === "Q") return true;
+        return false;
+      }
+      return false;
+    }
+
+    function decideHJ(h) {
+      if (isPair(h)) return pairRankValue(h) >= RANK_VALUE["4"];
+      if (isSuited(h)) {
+        if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return true;
+        if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (h.r1 === "J" && h.r2 === "T") return true;
+        if (isConnector(h) && Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["6"]) return true;
+        return false;
+      }
+      if (isOffsuit(h)) {
+        if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return true;
+        if (h.r1 === "Q" && h.r2 === "J") return true;
+        return false;
+      }
+      return false;
+    }
+
+    function decideCO(h) {
+      if (isPair(h)) return true;
+      if (isSuited(h)) {
+        if (h.r1 === "A") return true;
+        if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return true;
+        if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return true;
+        if (h.r1 === "J" && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return true;
+        if (isConnector(h) && Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["4"]) return true;
+        return false;
+      }
+      if (isOffsuit(h)) {
+        if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return true;
+        if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (h.r1 === "J" && h.r2 === "T") return true;
+        return false;
+      }
+      return false;
+    }
+
+    function decideBTN(h) {
+      if (isPair(h)) return true;
+      if (isSuited(h)) {
+        if (h.r1 === "A") return true;
+        if (h.r1 === "K") return true;
+        if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["5"]) return true;
+        if (isConnector(h) && Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["4"]) return true;
+        if (isOneGap(h) && Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["6"]) return true;
+        return false;
+      }
+      if (isOffsuit(h)) {
+        if (h.r1 === "A") return true;
+        if (["K", "Q", "J"].includes(h.r1) && isBroadway(h.r2)) {
+          if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+          if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+          if (h.r1 === "J" && h.r2 === "T") return true;
+        }
+        return false;
+      }
+      return false;
+    }
+
+    function decideDeepOpen(position, h) {
+      switch (position) {
+        case "UTG": return decideUTG(h);
+        case "MP":  return decideMP(h);
+        case "HJ":  return decideHJ(h);
+        case "CO":  return decideCO(h);
+        case "BTN": return decideBTN(h);
+        default: throw new Error("Unknown position.");
+      }
+    }
+
+    // ---------- SHORT-STACK SHOVE/FOLD (OPEN, ≤ 10 BB) ----------
+
+    function decideShortOpen(position, h, bb) {
+      if (bb > 10) return null;
+
+      if (["UTG", "MP", "HJ"].includes(position)) {
+        if (isPair(h)) return true;
+        if (h.r1 === "A") {
+          if (isSuited(h)) return true;
+          return RANK_VALUE[h.r2] >= RANK_VALUE["T"];
+        }
+        if (h.r1 === "K" && isSuited(h) && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return true;
+        if (isSuited(h) && isConnector(h) &&
+            Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["9"]) return true;
+        return false;
+      } else {
+        let strongShort = false;
+        if (isPair(h)) {
+          strongShort = true;
+        } else if (isSuited(h)) {
+          if (h.r1 === "A") strongShort = true;
+          else if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["5"]) strongShort = true;
+          else if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["8"]) strongShort = true;
+          else if (h.r1 === "J" && RANK_VALUE[h.r2] >= RANK_VALUE["8"]) strongShort = true;
+          else if (isConnector(h) &&
+                   Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["7"]) strongShort = true;
+        } else if (isOffsuit(h)) {
+          if (h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["8"]) strongShort = true;
+          else if (h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) strongShort = true;
+          else if (h.r1 === "Q" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) strongShort = true;
+          else if (h.r1 === "J" && h.r2 === "T") strongShort = true;
+        }
+        return strongShort;
+      }
+    }
+
+    // ---------- VS OPEN: 3-BET / CALL / FOLD ----------
+
+    function vsUTGOpen(h) {
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["J"]) return "3BET"; // JJ+
+      if (!isPair(h) && h.r1 === "A" && h.r2 === "K") return "3BET";     // AK
+      if ((isPair(h) && pairRankValue(h) >= RANK_VALUE["9"]) ||
+          (isSuited(h) && h.r1 === "A" && h.r2 === "Q")) {
+        return "CALL"; // 99–TT, AQs
+      }
+      if (isSuited(h) && h.r1 === "A" && ["5","4"].includes(h.r2)) return "3BET"; // A5s–A4s bluff
+      if (isSuited(h) && h.r1 === "K" && h.r2 === "J") return "3BET";
+      if (isSuited(h) && h.r1 === "Q" && h.r2 === "J") return "3BET";
+      return "FOLD";
+    }
+
+    function vsMPOpen(h) {
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["J"]) return "3BET";
+      if (!isPair(h) && h.r1 === "A" && h.r2 === "K") return "3BET";
+      if (isSuited(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return "CALL"; // ATs+
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["8"] && pairRankValue(h) <= RANK_VALUE["T"]) return "CALL"; // 88–TT
+      if (isOffsuit(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return "CALL"; // AJo+
+      if (isOffsuit(h) && h.r1 === "K" && h.r2 === "Q") return "CALL"; // KQo
+      if (isSuited(h) && h.r1 === "A" && ["5","4"].includes(h.r2)) return "3BET"; // A5s–A4s
+      if (isSuited(h) && h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return "3BET";
+      if (isSuited(h) && (h.r1 === "Q" && h.r2 === "J")) return "3BET";
+      if (isSuited(h) && (h.r1 === "J" && h.r2 === "T")) return "3BET";
+      return "FOLD";
+    }
+
+    function vsHJOpen(h) {
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["T"]) return "3BET"; // TT+
+      if (!isPair(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["Q"]) return "3BET"; // AQ+
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["6"] && pairRankValue(h) <= RANK_VALUE["9"]) return "CALL"; // 66–99
+      if (isSuited(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return "CALL";
+      if (isOffsuit(h) && h.r1 === "A" && h.r2 === "J") return "CALL";
+      if (isSuited(h) && h.r1 === "A" && RANK_VALUE[h.r2] <= RANK_VALUE["5"]) return "3BET"; // A2–A5s
+      if (isSuited(h) && ["K","Q","J"].includes(h.r1) && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return "3BET";
+      if (isSuited(h) && isConnector(h) &&
+          Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["6"]) return "3BET";
+      return "FOLD";
+    }
+
+    function vsCOOpen(h) {
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["9"]) return "3BET"; // 99+
+      if (!isPair(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["Q"]) return "3BET"; // AQ+
+      if (isPair(h)) return "CALL"; // any pair else
+      if (isSuited(h) && h.r1 === "A") return "CALL";
+      if (isOffsuit(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return "CALL";
+      if (isOffsuit(h) && h.r1 === "K" && h.r2 === "Q") return "CALL";
+      if (isSuited(h) && h.r1 === "A" && RANK_VALUE[h.r2] <= RANK_VALUE["5"]) return "3BET"; // A2s–A5s
+      if (isSuited(h) && ["K","Q","J"].includes(h.r1) && RANK_VALUE[h.r2] >= RANK_VALUE["9"]) return "3BET";
+      if (isSuited(h) && isConnector(h) &&
+          Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["6"]) return "3BET";
+      return "FOLD";
+    }
+
+    function vsBTNOpen(h) {
+      if (isPair(h) && pairRankValue(h) >= RANK_VALUE["8"]) return "3BET"; // 88+
+      if (isSuited(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return "3BET"; // AJs+
+      if (!isPair(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["Q"]) return "3BET"; // AQ+
+      if (isPair(h)) return "CALL"; // all pairs
+      if (isSuited(h) && h.r1 === "A") return "CALL";
+      if (isOffsuit(h) && h.r1 === "A" && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return "CALL";
+      if (isOffsuit(h) && h.r1 === "K" && RANK_VALUE[h.r2] >= RANK_VALUE["J"]) return "CALL";
+      if (isSuited(h) && h.r1 === "A" && RANK_VALUE[h.r2] <= RANK_VALUE["5"]) return "3BET"; // A2–A5s bluff
+      if (isSuited(h) && ["K","Q","J"].includes(h.r1) && RANK_VALUE[h.r2] >= RANK_VALUE["T"]) return "3BET";
+      if (isSuited(h) && isConnector(h) &&
+          Math.min(RANK_VALUE[h.r1], RANK_VALUE[h.r2]) >= RANK_VALUE["6"]) return "3BET";
+      return "FOLD";
+    }
+
+    function decideVsOpen(villainPos, h) {
+      switch (villainPos) {
+        case "UTG": return vsUTGOpen(h);
+        case "MP":  return vsMPOpen(h);
+        case "HJ":  return vsHJOpen(h);
+        case "CO":  return vsCOOpen(h);
+        case "BTN": return vsBTNOpen(h);
+        default: throw new Error("Unknown villain position.");
+      }
+    }
+
+    // ---------- VS 3-BET: 4-BET / CALL / FOLD (simple) ----------
+
+    function decideVs3Bet(heroPos, villainPos, h) {
+      // Value 4-bet: QQ+ / AK almost always
+      if ((isPair(h) && pairRankValue(h) >= RANK_VALUE["Q"]) ||
+          (!isPair(h) && h.r1 === "A" && h.r2 === "K")) {
+        return "4BET";
+      }
+
+      // 4-bet bluff sometimes with A5s–A4s from late positions vs later villain
+      const lateHero = heroPos === "CO" || heroPos === "BTN";
+      const lateVillain = villainPos === "CO" || villainPos === "BTN";
+      if (lateHero && lateVillain && isSuited(h) && h.r1 === "A" &&
+          ["2","3","4","5"].includes(h.r2)) {
+        return "4BET";
+      }
+
+      // Reasonable call hands vs non-UTG 3-bets: JJ, TT, AQs, KQs
+      if (villainPos !== "UTG") {
+        if (isPair(h) && (pairRankValue(h) === RANK_VALUE["J"] || pairRankValue(h) === RANK_VALUE["T"])) {
+          return "CALL";
+        }
+        if (isSuited(h) && h.r1 === "A" && h.r2 === "Q") return "CALL"; // AQs
+        if (isSuited(h) && h.r1 === "K" && h.r2 === "Q") return "CALL"; // KQs
+      }
+
+      // Very tight vs UTG 3-bet: mostly fold non-premiums
+      return "FOLD";
+    }
+
+    // ---------- MAIN DECISION ----------
+
+    function getAction(situation, heroPos, villainPos, stackBB, handStr) {
+      const h = parseHand(handStr);
+      const bb = Number(stackBB);
+      if (!Number.isFinite(bb) || bb <= 0) {
+        throw new Error("Please enter a valid stack size in big blinds.");
+      }
+
+      if (situation === "OPEN") {
+        if (bb <= 10) {
+          const shove = decideShortOpen(heroPos, h, bb);
+          return {
+            action: shove ? "SHOVE" : "FOLD",
+            mode: `Open first in • Short-stack mode (≤ 10 BB): shove/fold first-in range.`,
+          };
+        } else {
+          const raise = decideDeepOpen(heroPos, h);
+          return {
+            action: raise ? "RAISE" : "FOLD",
+            mode: `Open first in • Deep-stack mode (> 10 BB): solid opening range.`,
+          };
+        }
+      }
+
+      if (situation === "VS_OPEN") {
+        const res = decideVsOpen(villainPos, h);
+        let mode = `Facing an open from ${villainPos}: 3-bet / call / fold approximation.`;
+        return { action: res, mode };
+      }
+
+      if (situation === "VS_3BET") {
+        const res = decideVs3Bet(heroPos, villainPos, h);
+        let mode = `Facing a 3-bet (assumes ~30–60 BB effective): simple 4-bet / call / fold logic.`;
+        return { action: res, mode };
+      }
+
+      throw new Error("Unknown situation.");
+    }
+
+    document.getElementById("goBtn").addEventListener("click", () => {
+      const situation = document.getElementById("situation").value;
+      const heroPos = document.getElementById("position").value;
+      const villainPos = document.getElementById("villainPos").value;
+      const stack = document.getElementById("stack").value;
+      const hand = document.getElementById("hand").value;
+
+      const errorEl = document.getElementById("error");
+      const resultEl = document.getElementById("result");
+      const actionText = document.getElementById("actionText");
+      const badge = document.getElementById("badge");
+      const modeText = document.getElementById("modeText");
+
+      errorEl.style.display = "none";
+      resultEl.style.display = "none";
+
+      try {
+        const res = getAction(situation, heroPos, villainPos, stack, hand);
+        actionText.textContent = res.action;
+        const clsMap = {
+          "RAISE": "raise",
+          "SHOVE": "shove",
+          "3BET": "raise",
+          "4BET": "raise",
+          "CALL": "",
+          "FOLD": "fold",
+        };
+        const cls = clsMap[res.action] || "";
+        actionText.className = "action " + cls;
+        badge.textContent = `${situation.replace("_", " ")} • You: ${heroPos}, Villain: ${villainPos}, ${stack} BB`;
+        modeText.textContent = res.mode;
+        resultEl.style.display = "block";
+      } catch (e) {
+        errorEl.textContent = e.message || "Something went wrong.";
+        errorEl.style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>
